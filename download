@@ -1,7 +1,1 @@
-dist/
-node_modules/
-*.config.js
-*.config.ts
-vite.config.ts
-postcss.config.js
-tailwind.config.js
+/* /index.html 200
