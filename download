@@ -1,1 +1,12 @@
-/* /index.html 200
+.agents/*
+.claude/*
+node_modules
+out
+vite.config.ts.*
+.idea
+dist
+*.tsbuildinfo
+
+# Compiled JS files (TypeScript generates these)
+src/**/*.js
+src/**/*.jsx

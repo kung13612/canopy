@@ -1,46 +1,56 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  const env = loadEnv(mode, '.', '')
-
-  // Mirror netlify.toml redirects so the dev server speaks the same
-  // same-origin proxy paths used in production (/rpc-node1, /admin-node1).
-  // VITE_DEV_RPC_PROXY / VITE_DEV_ADMIN_PROXY override the default upstreams.
-  const rpcUpstream =
-    env.VITE_DEV_RPC_PROXY ||
-    env.VITE_PUBLIC_RPC_URL ||
-    'https://node1.canopy.us.nodefleet.net/rpc'
-  const adminUpstream =
-    env.VITE_DEV_ADMIN_PROXY ||
-    env.VITE_PUBLIC_ADMIN_RPC_URL ||
-    'https://node1.canopy.us.nodefleet.net/admin'
-
-  const stripTrailingSlash = (value: string) => value.replace(/\/+$/, '')
+  const env = loadEnv(mode, ".", "");
 
   return {
-    plugins: [react()],
-    define: {
-      // Ensure environment variables are available at build time
-      'import.meta.env.VITE_NODE_ENV': JSON.stringify(env.VITE_NODE_ENV || 'development'),
+    base: "/",
+    resolve: {
+      dedupe: ["react", "react-dom"],
+      extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".json"],
+      alias: {
+        "@": "/src",
+      },
     },
+    plugins: [react()],
+    build: {
+      outDir: "out",
+      assetsDir: "assets",
+    },
+
+    // Development server configuration
     server: {
+      port: 5173,
       proxy: {
-        '/rpc-node1': {
-          target: stripTrailingSlash(rpcUpstream),
+        // Proxy /rpc to RPC server
+        '/rpc': {
+          target: env.VITE_WALLET_RPC_PROXY_TARGET || 'http://localhost:50002',
           changeOrigin: true,
-          secure: true,
-          rewrite: (path) => path.replace(/^\/rpc-node1/, ''),
+          rewrite: (path) => path.replace(/^\/rpc/, ''),
         },
-        '/admin-node1': {
-          target: stripTrailingSlash(adminUpstream),
+        // Proxy /adminrpc to Admin RPC server
+        '/adminrpc': {
+          target: env.VITE_WALLET_ADMIN_RPC_PROXY_TARGET || 'http://localhost:50003',
           changeOrigin: true,
-          secure: true,
-          rewrite: (path) => path.replace(/^\/admin-node1/, ''),
+          rewrite: (path) => path.replace(/^\/adminrpc/, ''),
+        },
+        // Proxy /rootrpc to Root Chain RPC server (for cross-chain order queries)
+        '/rootrpc': {
+          target: env.VITE_ROOT_WALLET_RPC_PROXY_TARGET || 'http://localhost:50002',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/rootrpc/, ''),
         },
       },
     },
-  }
-})
+
+    define: {
+      // Ensure environment variables are available at build time
+      "import.meta.env.VITE_NODE_ENV": JSON.stringify(
+        env.VITE_NODE_ENV || "development",
+      ),
+    },
+  };
+});
