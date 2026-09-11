@@ -1,89 +1,31 @@
-import React from 'react'
+import React from 'react';
 
-const Footer: React.FC = () => {
+export const Footer = (): JSX.Element => {
+    const links = [
+        { label: 'Terms',     href: '#' },
+        { label: 'Privacy',   href: '#' },
+        { label: 'Security',  href: '#' },
+        { label: 'Support',   href: '#' },
+    ];
+
     return (
-        <footer className="mt-6 border-t border-white/10 bg-transparent">
-            <div className="mx-auto px-1 py-6 sm:px-2">
-                {/* Desktop Layout */}
-                <div className="hidden md:flex items-center justify-between">
-                    {/* Right side - Links */}
-                    <div className="flex items-center gap-6">
+        <footer className="border-t border-border/40 mt-8">
+            <div className="px-5 py-3">
+                <div className="flex flex-wrap justify-center items-center gap-5">
+                    {links.map(({ label, href }) => (
                         <a
-                            href="https://canopy-network.gitbook.io/docs/secure-canopy/node-runner"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
+                            key={label}
+                            href={href}
+                            className="text-muted-foreground hover:text-primary transition-colors duration-150 text-xs whitespace-nowrap"
                         >
-                            API
+                            {label}
                         </a>
-                        <a
-                            href="https://canopy-network.gitbook.io/docs"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
-                        >
-                            Docs
-                        </a>
-                        <a
-                            href="https://www.canopynetwork.org/privacy-policy"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
-                        >
-                            Privacy
-                        </a>
-                        <a
-                            href="https://www.canopynetwork.org/terms-of-service"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200"
-                        >
-                            Terms
-                        </a>
-                    </div>
-                </div>
-
-                {/* Mobile Layout */}
-                <div className="md:hidden">
-                    {/* Links Grid */}
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                        <a
-                            href="https://canopy-network.gitbook.io/docs/secure-canopy/node-runner"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200 text-center py-2"
-                        >
-                            API
-                        </a>
-                        <a
-                            href="https://canopy-network.gitbook.io/docs"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200 text-center py-2"
-                        >
-                            Docs
-                        </a>
-                        <a
-                            href="https://www.canopynetwork.org/privacy-policy"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200 text-center py-2"
-                        >
-                            Privacy
-                        </a>
-                        <a
-                            href="https://www.canopynetwork.org/terms-of-service"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white text-sm transition-colors duration-200 text-center py-2"
-                        >
-                            Terms
-                        </a>
-                    </div>
+                    ))}
+                    <span className="text-muted-foreground/40 text-xs ml-2">
+                        v1.0
+                    </span>
                 </div>
             </div>
         </footer>
-    )
-}
-
-export default Footer
+    );
+};

@@ -1,334 +1,221 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import React from 'react'
-import menuConfig from '../data/navbar.json'
-import Logo from './Logo'
-import { useLatestBlock } from '../hooks/useApi'
-import NetworkSelector from './NetworkSelector'
+import React, { useState } from 'react';
+import { Key, Menu, X, Blocks } from 'lucide-react';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/Select";
+import { useAccounts } from "@/app/providers/AccountsProvider";
+import { useTotalStage } from "@/hooks/useTotalStage";
+import { useDS } from "@/core/useDs";
+import { useDenom } from "@/hooks/useDenom";
+import AnimatedNumber from "@/components/ui/AnimatedNumber";
+import Logo from './Logo';
+import { Link, NavLink } from 'react-router-dom';
 
-const Navbar = () => {
-    const location = useLocation()
-    const navigate = useNavigate()
-    const [searchTerm, setSearchTerm] = React.useState('')
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+const navItems = [
+    { name: 'Dashboard',  path: '/' },
+    { name: 'Accounts',   path: '/accounts' },
+    { name: 'Staking',    path: '/staking' },
+    { name: 'Governance', path: '/governance' },
+    { name: 'Monitoring', path: '/monitoring' },
+];
 
-    // Menu configuration by route, with dropdowns and submenus
-    type MenuLink = { label: string, path: string }
-    type MenuItem = { label: string, path?: string, children?: MenuLink[] }
-    type RouteMenu = { title: string, root: MenuItem[], secondary?: MenuItem[] }
+const mobileMenuVariants: Variants = {
+    closed: { opacity: 0, height: 0, transition: { duration: 0.25, ease: 'easeInOut' } },
+    open:   { opacity: 1, height: 'auto', transition: { duration: 0.25, ease: 'easeInOut' } },
+};
 
-    const MENUS_BY_ROUTE: Record<string, RouteMenu> = {
-        '/': {
-            title: (menuConfig as any)?.home?.title || '',
-            root: ((menuConfig as any)?.home?.root || []) as any,
-        },
-        '/blocks': {
-            title: '',
-            root: ((menuConfig as any)?.home?.root || []) as any,
-        },
-        '/transactions': {
-            title: '',
-            root: ((menuConfig as any)?.home?.root || []) as any,
-        },
-    }
+export const Navbar = (): JSX.Element => {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const normalizePath = (p: string) => {
-        if (p === '/') return '/'
-        const first = '/' + p.split('/').filter(Boolean)[0]
-        return MENUS_BY_ROUTE[first] ? first : '/'
-    }
+    const {
+        accounts,
+        loading,
+        error: hasErrorInAccounts,
+        switchAccount,
+        selectedAccount,
+    } = useAccounts();
 
-    const currentRoot = normalizePath(location.pathname)
-    const menu = MENUS_BY_ROUTE[currentRoot] ?? MENUS_BY_ROUTE['/']
-
-    const [openIndex, setOpenIndex] = React.useState<number | null>(null)
-    const handleClose = () => setOpenIndex(null)
-    const handleToggle = (index: number) => setOpenIndex(prev => prev === index ? null : index)
-    const navRef = React.useRef<HTMLDivElement | null>(null)
-    // State for mobile dropdowns (accordion)
-    const [mobileOpenIndex, setMobileOpenIndex] = React.useState<number | null>(null)
-    const toggleMobileIndex = (index: number) => setMobileOpenIndex(prev => prev === index ? null : index)
-    const latestBlock = useLatestBlock()
-
-    // Check whether the current route is inside an item's child routes
-    const isActiveRoute = (item: MenuItem): boolean => {
-        if (!item.children || item.children.length === 0) return false
-        return item.children.some(child => location.pathname === child.path || location.pathname.startsWith(child.path + '/'))
-    }
-
-    React.useEffect(() => {
-        // Close dropdowns when changing route
-        handleClose()
-        setMobileOpenIndex(null)
-    }, [currentRoot])
-
-    React.useEffect(() => {
-        const handleDocumentMouseDown = (event: MouseEvent) => {
-            if (navRef.current && !navRef.current.contains(event.target as Node)) {
-                handleClose()
-                setIsMobileMenuOpen(false)
-            }
-        }
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                handleClose()
-                setIsMobileMenuOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handleDocumentMouseDown)
-        document.addEventListener('keydown', handleKeyDown)
-        return () => {
-            document.removeEventListener('mousedown', handleDocumentMouseDown)
-            document.removeEventListener('keydown', handleKeyDown)
-        }
-    }, [])
+    const { data: totalStage, isLoading: stageLoading } = useTotalStage();
+    const { symbol, factor } = useDenom();
+    const { data: blockHeight } = useDS<{ height: number }>('height', {}, {
+        staleTimeMs: 10_000,
+        refetchIntervalMs: 10_000,
+    });
 
     return (
-        <nav ref={navRef} className="bg-background border-b border-border/40">
-            <div className="mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16 gap-4">
-                    {/* Section 1: Left - Logo + Block # */}
-                    <div className="flex items-center">
-                        <Link to="/" className="flex items-center space-x-3">
-                            <Logo />
-                            <div className="bg-card rounded-full px-2 py-1 flex items-center gap-2 text-base">
-                                <p className='text-gray-500 font-light'>Block:</p>
-                                <p className="font-medium text-white">#{latestBlock.data?.totalCount?.toLocaleString() || '0'}</p>
-                            </div>
-                        </Link>
-                    </div>
+        <motion.header
+            className="sticky top-0 z-30 lg:hidden"
+            style={{ background: 'hsl(var(--background))' }}
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+        >
+            <div className="absolute bottom-0 inset-x-0 h-px bg-border/60" />
 
-                    {/* Section 2: Center - Search Bar */}
-                    <div className="hidden md:flex items-center justify-center w-full">
-                        <div className="relative w-full max-w-lg mx-auto">
-                            <input
-                                type="text"
-                                placeholder="Search blocks, transactions, addresses..."
-                                className="bg-card rounded-full p-2 py-2.5 pl-10 text-base text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20 w-full"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        const lowerCaseSearchTerm = searchTerm.toLowerCase();
-                                        if (lowerCaseSearchTerm.includes('swap') || lowerCaseSearchTerm.includes('token')) {
-                                            navigate('/token-swaps');
-                                            setSearchTerm(''); // Clear input after search
-                                        } else if (searchTerm.trim()) {
-                                            // Navigate to search page with the term
-                                            navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
-                                            setSearchTerm(''); // Clear input after search
-                                        }
-                                    }
-                                }}
-                            />
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 flex items-center justify-center"></i>
-                        </div>
-                    </div>
+            {/* ── Mobile header bar ── */}
+            <div className="flex items-center justify-between px-4 h-14">
 
-                    {/* Section 3: Right - Navigation Items + Network Selector */}
-                    <div className="hidden md:flex items-center justify-end space-x-4">
-                        {/* Navigation Items */}
-                        <div className="flex items-center space-x-2">
-                            {menu.root.map((item, index) => (
-                                <div
-                                    key={item.label}
-                                    className="relative z-10"
-                                >
-                                    <button
-                                        onClick={() => handleToggle(index)}
-                                        className={`relative z-20 px-3 py-2 rounded-md text-base font-normal transition-colors duration-200 flex items-center gap-1 ${openIndex === index || isActiveRoute(item) ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-                                    >
-                                        {item.label}
-                                        <motion.svg
-                                            className="h-4 w-4"
-                                            viewBox="0 0 20 20"
-                                            fill="currentColor"
-                                            animate={{ rotate: openIndex === index ? 180 : 0 }}
-                                            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                                        >
-                                            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
-                                        </motion.svg>
-                                        <motion.span
-                                            className="pointer-events-none absolute left-2 right-2 -bottom-0.5 h-0.5 rounded bg-white/70"
-                                            animate={{ scaleX: openIndex === index || isActiveRoute(item) ? 1 : 0 }}
-                                            initial={false}
-                                            transition={{ duration: 0.16, ease: 'easeOut' }}
-                                            style={{ transformOrigin: 'left center' }}
-                                        />
-                                    </button>
-                                    <AnimatePresence>
-                                        {item.children && item.children.length > 0 && openIndex === index && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                                                transition={{ duration: 0.18, ease: 'easeOut' }}
-                                                className="absolute right-0 mt-2 min-w-[220px] overflow-hidden rounded-lg border border-white/10 bg-card shadow-2xl"
-                                            >
-                                                <motion.div
-                                                    initial={{ opacity: 0 }}
-                                                    animate={{ opacity: 1 }}
-                                                    exit={{ opacity: 0 }}
-                                                    className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/2 to-transparent"
-                                                />
-                                                <ul className="py-1 relative">
-                                                    {item.children.map((child, i) => (
-                                                        <motion.li
-                                                            key={child.path}
-                                                            initial={{ opacity: 0, y: -6 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            transition={{ delay: 0.03 * i, duration: 0.14 }}
-                                                        >
-                                                            <Link
-                                                                to={child.path}
-                                                                className={`block px-3 py-2 text-base font-normal ${location.pathname === child.path || location.pathname.startsWith(child.path + '/') ? 'text-white bg-white/10' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
-                                                                onClick={handleClose}
-                                                            >
-                                                                {child.label}
-                                                            </Link>
-                                                        </motion.li>
-                                                    ))}
-                                                </ul>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            ))}
-                        </div>
+                {/* Logo + block height */}
+                <div className="flex items-center gap-3">
+                    <Link to="/" className="flex items-center gap-2 group">
+                        <Logo size={28} showText={false} />
+                        <span className="text-foreground font-semibold text-base tracking-tight group-hover:text-primary transition-colors duration-150">
+                            Wallet
+                        </span>
+                    </Link>
 
-                        {/* Spacer */}
-                        <div className="w-4"></div>
-
-                        <button
-                            onClick={() => window.open("https://discord.com/channels/1310733928436600912/1439049045145419806/1439945810446909560", "_blank")}
-                            className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-white/15 px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
-                        >
-                            <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-4 w-4 shrink-0"
-                            >
-                                <path
-                                    d="M8 9.33333V7M6.19615 12.3224L7.57285 13.4764C7.81949 13.6832 8.17861 13.6842 8.42643 13.4789L9.8253 12.32C9.94489 12.2209 10.0953 12.1667 10.2506 12.1667H11.5C12.6046 12.1667 13.5 11.2712 13.5 10.1667V4.5C13.5 3.39543 12.6046 2.5 11.5 2.5H4.5C3.39543 2.5 2.5 3.39543 2.5 4.5V10.1667C2.5 11.2712 3.39543 12.1667 4.5 12.1667H5.76788C5.9245 12.1667 6.07612 12.2218 6.19615 12.3224Z"
-                                    stroke="currentColor"
-                                    strokeLinecap="round"
-                                />
-                                <path d="M8 5.33337H8.00667" stroke="currentColor" strokeWidth="1.33333" strokeLinecap="round" />
-                            </svg>
-                            Create a Ticket
-                        </button>
-
-                        {/* Network Selector */}
-                        {import.meta.env.VITE_NODE_ENV === 'production' && (
-                            <NetworkSelector />
-                        )}
-                    </div>
-
-                    {/* Mobile menu button */}
-                    <div className="md:hidden flex items-center justify-end col-start-3">
-                        <button
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="text-gray-300 hover:text-white focus:outline-none focus:text-white"
-                        >
-                            <motion.svg
-                                className="h-6 w-6"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                animate={{ rotate: isMobileMenuOpen ? 90 : 0 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {isMobileMenuOpen ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                )}
-                            </motion.svg>
-                        </button>
+                    {/* Block height pill */}
+                    <div
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                        style={{ background: 'hsl(var(--primary) / 0.07)' }}
+                    >
+                        <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
+                        </span>
+                        <Blocks className="w-3 h-3 text-primary/70" />
+                        <span className="text-xs font-semibold tabular-nums text-primary">
+                            {blockHeight != null ? blockHeight.height.toLocaleString() : '—'}
+                        </span>
                     </div>
                 </div>
+
+                {/* Hamburger */}
+                <motion.button
+                    className="p-2 rounded-lg hover:bg-accent/60 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    whileTap={{ scale: 0.93 }}
+                >
+                    {isMobileMenuOpen
+                        ? <X className="w-5 h-5 text-foreground" />
+                        : <Menu className="w-5 h-5 text-muted-foreground" />
+                    }
+                </motion.button>
             </div>
 
-            {/* Mobile menu */}
-            {isMobileMenuOpen && (
-                <div className="md:hidden">
-                    <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                        {menu.root.map((item, index) => (
-                            <div key={item.label} className="mb-1">
-                                <button
-                                    onClick={() => toggleMobileIndex(index)}
-                                    className={`w-full text-left px-3 py-2 rounded-md text-base font-medium flex items-center justify-between ${mobileOpenIndex === index || isActiveRoute(item) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
-                                >
-                                    <span>{item.label}</span>
-                                    <svg className={`h-4 w-4 transition-transform ${mobileOpenIndex === index ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" /></svg>
-                                </button>
-                                {item.children && item.children.length > 0 && (
-                                    <div className={`${mobileOpenIndex === index || isActiveRoute(item) ? 'block' : 'hidden'} mt-1 ml-2 border-l border-white/10`}>
-                                        <ul className="py-1">
-                                            {item.children.map((child) => (
-                                                <li key={child.path}>
-                                                    <Link
-                                                        to={child.path}
-                                                        className={`block px-3 py-2 text-sm rounded-md ${location.pathname === child.path || location.pathname.startsWith(child.path + '/') ? 'text-white bg-white/10' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
-                                                        onClick={() => setMobileOpenIndex(null)}
-                                                    >
-                                                        {child.label}
-                                                    </Link>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+            {/* ── Dropdown menu ── */}
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <motion.div
+                        initial="closed"
+                        animate="open"
+                        exit="closed"
+                        variants={mobileMenuVariants}
+                        className="overflow-hidden border-t border-border/60"
+                        style={{ background: 'hsl(var(--background))' }}
+                    >
+                        <div className="px-4 py-4 space-y-4 max-h-[calc(100dvh-56px)] overflow-y-auto">
 
-                        {/* Mobile Network Selector */}
-                        {import.meta.env.VITE_NODE_ENV === 'production' && (
-                            <div className="px-3 py-2">
-                                <NetworkSelector />
-                            </div>
-                        )}
-
-                        {/* Mobile Search */}
-                        <div className="px-3 py-2">
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    placeholder="Search blocks, transactions, addresses..."
-                                    className="w-full px-4 py-3 pl-10 bg-card border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            const lowerCaseSearchTerm = searchTerm.toLowerCase();
-                                            if (lowerCaseSearchTerm.includes('swap') || lowerCaseSearchTerm.includes('token')) {
-                                                navigate('/token-swaps');
-                                            } else if (lowerCaseSearchTerm.includes('validator') || lowerCaseSearchTerm.includes('stake')) {
-                                                navigate('/staking');
-                                            } else if (lowerCaseSearchTerm.includes('block')) {
-                                                navigate('/blocks');
-                                            } else if (lowerCaseSearchTerm.includes('transaction') || lowerCaseSearchTerm.includes('tx')) {
-                                                navigate('/transactions');
-                                            } else if (lowerCaseSearchTerm.includes('account') || lowerCaseSearchTerm.includes('address')) {
-                                                navigate('/accounts');
-                                            } else {
-                                                navigate('/search', { state: { query: searchTerm } });
-                                            }
-                                            setIsMobileMenuOpen(false)
+                            {/* Nav links */}
+                            <nav className="flex flex-col gap-0.5">
+                                {navItems.map((item) => (
+                                    <NavLink
+                                        key={item.name}
+                                        to={item.path}
+                                        end={item.path === '/'}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className={({ isActive }) =>
+                                            `px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                                                isActive
+                                                    ? 'bg-primary/10 text-primary'
+                                                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                                            }`
                                         }
-                                    }}
-                                />
-                                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 flex items-center justify-center"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </nav>
-    )
-}
+                                    >
+                                        {item.name}
+                                    </NavLink>
+                                ))}
+                            </nav>
 
-export default Navbar
+                            <div className="h-px bg-border/60" />
+
+                            {/* Total CNPY */}
+                            <div
+                                className="flex items-center justify-between px-3 py-2.5 rounded-lg"
+                                style={{ background: 'hsl(var(--card))' }}
+                            >
+                                <span className="text-sm text-muted-foreground">Total</span>
+                                <div className="flex items-center gap-1.5">
+                                    {stageLoading ? (
+                                        <span className="text-sm font-semibold text-primary">…</span>
+                                    ) : (
+                                        <AnimatedNumber
+                                            value={totalStage ? totalStage / factor : 0}
+                                            format={{ notation: 'compact', maximumFractionDigits: 1 }}
+                                            className="text-sm font-semibold text-primary tabular-nums"
+                                        />
+                                    )}
+                                    <span className="text-xs font-semibold text-muted-foreground/60">{symbol}</span>
+                                </div>
+                            </div>
+
+                            {/* Account selector */}
+                            <Select
+                                value={selectedAccount?.id || ''}
+                                onValueChange={(value) => {
+                                    switchAccount(value);
+                                    setIsMobileMenuOpen(false);
+                                }}
+                            >
+                                <SelectTrigger
+                                    className="w-full h-11 rounded-lg border border-border/60 px-3 text-sm font-medium text-foreground"
+                                    style={{ background: 'hsl(var(--card))' }}
+                                >
+                                    <div className="flex items-center gap-3 w-full min-w-0">
+                                        <div className="w-7 h-7 rounded-full bg-primary/25 flex items-center justify-center flex-shrink-0">
+                                            <span className="text-xs font-bold text-foreground">
+                                                {selectedAccount?.nickname?.charAt(0)?.toUpperCase() || 'A'}
+                                            </span>
+                                        </div>
+                                        <span className="text-sm font-medium truncate">
+                                            {loading ? 'Loading…' : selectedAccount?.nickname || 'Select account'}
+                                        </span>
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent className="bg-card border border-border/60">
+                                    {accounts.map((account, index) => (
+                                        <SelectItem key={account.id} value={account.id} className="text-foreground hover:bg-muted">
+                                            <div className="flex items-center gap-3 w-full">
+                                                <div className="w-7 h-7 rounded-full bg-primary/25 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-xs font-bold text-foreground">
+                                                        {account.nickname?.charAt(0)?.toUpperCase() || 'A'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-col items-start flex-1 min-w-0">
+                                                    <span className="text-sm font-medium text-foreground truncate">
+                                                        {account.nickname || `Account ${index + 1}`}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground truncate">
+                                                        {account.address.slice(0, 6)}…{account.address.slice(-4)}
+                                                    </span>
+                                                </div>
+                                                {account.isActive && (
+                                                    <div className="w-1.5 h-1.5 bg-primary rounded-full flex-shrink-0" />
+                                                )}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                    {(accounts.length === 0 && !loading) || hasErrorInAccounts ? (
+                                        <div className="p-2 text-center text-muted-foreground text-sm">
+                                            No accounts available
+                                        </div>
+                                    ) : null}
+                                </SelectContent>
+                            </Select>
+
+                            {/* Key Management */}
+                            <Link
+                                to="/key-management"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="w-full h-11 bg-primary hover:bg-primary-light text-primary-foreground rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-colors duration-150"
+                            >
+                                <Key className="w-4 h-4" />
+                                Key Management
+                            </Link>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.header>
+    );
+};
+
