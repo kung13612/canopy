@@ -1,32 +1,25 @@
 import React from 'react'
-import ReactDOM from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-// import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import App from './App.tsx'
+import App from './app/App'
 import './index.css'
+import "@radix-ui/themes/styles.css";
 
-// Create a client
-const queryClient = new QueryClient({
+
+const qc = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30000, // 30 seconds
-      refetchInterval: 20000, // 20 seconds auto refresh
-      retry: 3,
-      // Keep polling running even when the tab is in the background, so the
-      // dashboard reflects new blocks without needing a manual refresh.
-      refetchIntervalInBackground: true,
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
-      refetchOnMount: true,
+      refetchInterval: 20000, // 20 seconds
+      refetchIntervalInBackground: true, // Continue to refetch in background
+      staleTime: 10000, // Data is considered stale after 10 seconds
+      refetchOnWindowFocus: true, // Update when the window regains focus
     },
   },
 })
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={qc}>
       <App />
-      {/* <ReactQueryDevtools initialIsOpen={false} /> disabled for production */}
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 )
